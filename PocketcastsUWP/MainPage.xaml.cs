@@ -13,14 +13,14 @@ namespace PocketcastsUWP
     public sealed partial class MainPage : Page
     {
         string status = string.Empty;
-        string playPauseCommand = "angular.element(document).injector().get('mediaPlayer').playPause()";
-        string forwardCommand = "angular.element(document).injector().get('mediaPlayer').jumpForward()";
-        string backCommand = "angular.element(document).injector().get('mediaPlayer').jumpBack()";
-        string statusCommand = "angular.element(document).injector().get('mediaPlayer').playing.toString()";
-
-        string getEpisodeCommand = "angular.element(document).injector().get('mediaPlayer').episode.title.toString()";
-        string getPodcastCommand = "angular.element(document).injector().get('mediaPlayer').podcast.title.toString()";
-        string getArtCommand = "angular.element(document).injector().get('mediaPlayer').podcast.thumbnail_url.toString()";
+        string playPauseCommand = "angular.element(document).injector().get('mediaPlayer').playPause();";
+        string forwardCommand = "angular.element(document).injector().get('mediaPlayer').jumpForward();";
+        string backCommand = "angular.element(document).injector().get('mediaPlayer').jumpBack();";
+        string statusCommand = "angular.element(document).injector().get('mediaPlayer').playing.toString();";
+        string getEpisodeCommand = "angular.element(document).injector().get('mediaPlayer').episode.title.toString();";
+        string getPodcastCommand = "angular.element(document).injector().get('mediaPlayer').podcast.title.toString();";
+        string getArtCommand = "angular.element(document).injector().get('mediaPlayer').podcast.thumbnail_url.toString();";
+        string signedInStateCommand = "(document.documentElement.innerHTML.search(\"Sign In\") > 0) ? \"false\" : \"true\";";
 
         SystemMediaTransportControls systemControls;
 
@@ -91,18 +91,22 @@ namespace PocketcastsUWP
                 mediaOverlay.Type = Windows.Media.MediaPlaybackType.Music;
 
                 String episode, podcast, artURI;
-                
+
+                episode = "";
+                podcast = "";
+                artURI = "ms-appx:///Assets/StoreLogo.scale-400.png";
+                status = "false";
+
                 try
                 {
                     episode = await webEntryPoint.InvokeScriptAsync("eval", new string[] { getEpisodeCommand });
                     podcast = await webEntryPoint.InvokeScriptAsync("eval", new string[] { getPodcastCommand });
-                    artURI = await webEntryPoint.InvokeScriptAsync("eval", new string[] { getArtCommand });                    
+                    artURI = await webEntryPoint.InvokeScriptAsync("eval", new string[] { getArtCommand });
+                    status = await webEntryPoint.InvokeScriptAsync("eval", new string[] { statusCommand });
                 }
                 catch(Exception ex)
                 {
-                    episode = "";
-                    podcast = "";
-                    artURI = "ms-appx:///Assets/StoreLogo.scale-400.png";
+                    
                 }
 
                 mediaOverlay.MusicProperties.Artist = podcast;
@@ -111,7 +115,6 @@ namespace PocketcastsUWP
 
                 mediaOverlay.Update();
 
-                status = await webEntryPoint.InvokeScriptAsync("eval", new string[] { statusCommand });
                 SystemMediaTransportControls.GetForCurrentView().PlaybackStatus = status.Equals("true") ? MediaPlaybackStatus.Playing : MediaPlaybackStatus.Paused;
             });
 
@@ -126,16 +129,21 @@ namespace PocketcastsUWP
 
         async private void injectNotification()
         {
+            await Task.Delay(750); //Superrrr Ghetto, but can't figure out how to fire event on rendering complete ('NavigationCompleted" fires to soon and also multiple times for some reason)
             await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, async () =>
             {
-                string playPauseNotifyFunc = "var btns = document.getElementsByClassName('episode_button'); " +
-                                             "for (var i=0; i < btns.length; i++) { " +
-                                             "btns[i].addEventListener('click', function() { " +
-                                             "window.external.notify(\"PlayPauseEvent\"); })} " +
-                                             "document.getElementsByClassName('play_pause_button')[0].addEventListener('click', function() { window.external.notify(\"PlayPauseEvent\"); })";
+                string signedIn = await webEntryPoint.InvokeScriptAsync("eval", new string[] { signedInStateCommand });
+                if (signedIn == "true")
+                {
+                    
+                    string playPauseNotifyFunc = "var btns = document.getElementsByClassName('episode_button'); " +
+                                                 "for (var i=0; i < btns.length; i++) { " +
+                                                 "btns[i].addEventListener('click', function() { " +
+                                                 "window.external.notify(\"PlayPauseEvent\"); })} " +
+                                                 "document.getElementsByClassName('play_pause_button')[0].addEventListener('click', function() { window.external.notify(\"PlayPauseEvent\"); })";
 
-                await Task.Delay(750); //Superrrr Ghetto, but can't figure out how to fire event on rendering complete ('NavigationCompleted" fires to soon and also multiple times for some reason)
-                await webEntryPoint.InvokeScriptAsync("eval", new string[] { playPauseNotifyFunc });                
+                    await webEntryPoint.InvokeScriptAsync("eval", new string[] { playPauseNotifyFunc });
+                }
             });
         }
 
